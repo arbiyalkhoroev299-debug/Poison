@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Работа в Ингушетии — Найти работу и специалистов</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .active-nav { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans flex flex-col min-h-screen">
+
+  <!-- Навигация -->
+  <header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-6">
+        <a href="#" onclick="router('home')" class="text-xl font-bold text-blue-600 flex items-center gap-2">
+          <i class="fa-solid me-2 fa-briefcase"></i> Работа06
+        </a>
+        <nav class="hidden md:flex space-x-4 text-sm font-medium">
+          <button onclick="router('jobs')" id="nav-jobs" class="hover:text-blue-600 py-5">Найти работу</button>
+          <button onclick="router('workers')" id="nav-workers" class="hover:text-blue-600 py-5">Найти работника</button>
+        </nav>
+      </div>
+
+      <div class="flex items-center space-x-3" id="auth-buttons">
+        <!-- Заполняется динамически -->
+      </div>
+    </div>
+  </header>
+
+  <!-- Основной Контейнер Страниц -->
+  <main id="app-content" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Страницы рендерятся через JS -->
+  </main>
+
+  <!-- Подвал -->
+  <footer class="bg-white border-t border-gray-200 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+      &copy; 2026 Работа в Ингушетии. Платформа поиска работы и проверенных специалистов.
+    </div>
+  </footer>
+
+  <script>
+    // --- ИНИЦИАЛИЗАЦИЯ ДАННЫХ (MOCK DATABASE) ---
+    const defaultData = {
+      currentUser: { id: 101, name: "Магомед А.", role: "worker", city: "Малгобек", phone: "+7 (928) 000-00-00", rating: 4.8, jobsDone: 37 },
+      cities: ["Назрань", "Магас", "Малгобек", "Карабулак", "Сунжа"],
+      categories: ["🔌 Электрики", "🔧 Сантехники", "🧱 Строители", "🔥 Сварщики", "🚗 Водители", "🍳 Повара", "💻 IT", "🪚 Мастера"],
+      
+      workers: [
+        {
+          id: 101,
+          name: "Магомед А.",
+          status: "🟢 Открыт к работе",
+          city: "Малгобек",
+          profession: "Электрик",
+          rating: 4.8,
+          reviewsCount: 37,
+          experience: "8 лет",
+          skills: ["Электропроводка", "Электрощиты", "Освещение", "Розетки", "Диагностика"],
+          about: "Работаю электриком 8 лет. Выполняю электромонтажные работы в частных домах и коммерческих помещениях.",
+          scores: { quality: 4.9, punctuality: 4.7, communication: 4.8 }
+        },
+        {
+          id: 102,
+          name: "Ахмед Б.",
+          status: "🟢 Открыт к работе",
+          city: "Назрань",
+          profession: "Сварщик",
+          rating: 4.9,
+          reviewsCount: 19,
+          experience: "5 лет",
+          skills: ["Аргон", "Заборы", "Навесы", "Ворота"],
+          about: "Качественная сварка конструкций любой сложности.",
+          scores: { quality: 5.0, punctuality: 4.8, communication: 4.9 }
+        }
+      ],
+
+      employers: [
+        {
+          id: 201,
+          name: "ООО «КавказСтрой»",
+          city: "Назрань",
+          rating: 4.2,
+          reviewsCount: 58,
+          since: "2024",
+          about: "Крупная строительная компания, работающая по всей республике.",
+          scores: { payment: 4.1, attitude: 4.3, conditions: 4.0 }
+        }
+      ],
+
+      vacancies: [
+        {
+          id: 1,
+          employerId: 201,
+          company: "ООО «КавказСтрой»",
+          title: "Электрик",
+          city: "Назрань",
+          salary: "70 000 – 90 000 ₽",
+          requirements: ["Опыт от 2 лет", "Знание электрики", "Ответственность"],
+          conditions: ["Полный рабочий день", "Официальное оформление", "График 5/2"],
+          rating: 4.2
+        },
+        {
+          id: 2,
+          employerId: 201,
+          company: "ООО «КавказСтрой»",
+          title: "Сварщик",
+          city: "Назрань",
+          salary: "80 000 – 100 000 ₽",
+          requirements: ["Опыт от 3 лет", "Умение читать чертежи"],
+          conditions: ["График 6/1", "Предоставление инструмента"],
+          rating: 4.2
+        }
+      ],
+
+      applications: [
+        { id: 1, vacancyId: 1, workerId: 101, status: "Откликнулся", hired: false, completed: false }
+      ]
+    };
+
+    // Загрузка или установка дефолтных данных
+    if (!localStorage.getItem('job_app_db')) {
+      localStorage.setItem('job_app_db', JSON.stringify(defaultData));
+    }
+    let DB = JSON.parse(localStorage.getItem('job_app_db'));
+
+    function saveData() {
+      localStorage.setItem('job_app_db', JSON.stringify(DB));
+    }
+
+    // --- РОУТИНГ И РЕНДЕРИНГ СТРАНИЦ ---
+    let currentView = 'home';
+    let filterParams = {};
+
+    function router(view, params = {}) {
+      currentView = view;
+      filterParams = params;
+      renderAuthBar();
+      
+      const app = document.getElementById('app-content');
+      app.innerHTML = '';
+
+      switch (view) {
+        case 'home': renderHome(app); break;
+        case 'jobs': renderJobs(app); break;
+        case 'workers': renderWorkers(app); break;
+        case 'vacancy': renderVacancyDetail(app, params.id); break;
+        case 'worker_profile': renderWorkerProfile(app, params.id); break;
+        case 'post_job': renderPostJob(app); break;
+        case 'cabinet': renderCabinet(app); break;
+        case 'auth': renderAuth(app); break;
+        default: renderHome(app);
+      }
+      window.scrollTo(0,0);
+    }
+
+    function renderAuthBar() {
+      const container = document.getElementById('auth-buttons');
+      if (DB.currentUser) {
+        container.innerHTML = `
+          <button onclick="router('post_job')" class="hidden sm:inline-block bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-medium hover:bg-blue-700">+ Вакансия</button>
+          <button onclick="router('cabinet')" class="text-sm font-medium text-gray-700 hover:text-blue-600 flex items-center gap-1">
+            <i class="fa-solid fa-circle-user text-lg text-blue-600"></i> ${DB.currentUser.name}
+          </button>
+        `;
+      } else {
+        container.innerHTML = `
+          <button onclick="router('auth')" class="text-sm font-medium text-gray-700 hover:text-blue-600">Войти / Регистрация</button>
+        `;
+      }
+    }
+
+    // --- 1. ГЛАВНАЯ СТРАНИЦА ---
+    function renderHome(container) {
+      container.innerHTML = `
+        <div class="text-center py-10">
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">Работа рядом с тобой</h1>
+          <p class="text-gray-500 mb-8">Поиск работы и проверенных специалистов в Ингушетии</p>
+          
+          <div class="max-w-2xl mx-auto bg-white p-4 rounded-xl shadow-md flex flex-col md:flex-row gap-3">
+            <div class="flex-1 text-left">
+              <label class="block text-xs text-gray-400 font-semibold mb-1">ЧТО ИЩЕТЕ?</label>
+              <input id="search-prof" type="text" placeholder="Электрик..." class="w-full border-0 focus:ring-0 p-1 text-gray-800 font-medium placeholder-gray-300">
+            </div>
+            <div class="border-t md:border-t-0 md:border-l border-gray-200"></div>
+            <div class="w-full md:w-48 text-left">
+              <label class="block text-xs text-gray-400 font-semibold mb-1">ГДЕ?</label>
+              <select id="search-city" class="w-full border-0 focus:ring-0 p-1 font-medium text-gray-800 bg-transparent">
+                <option value="">Все города</option>
+                ${DB.cities.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <button onclick="handleSearch('jobs')" class="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">НАЙТИ РАБОТУ</button>
+              <button onclick="handleSearch('workers')" class="bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm">НАЙТИ РАБОТНИКА</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-10">
+          <h2 class="text-lg font-bold mb-4 text-gray-800">Популярные профессии</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            ${DB.categories.map(cat => `
+              <div onclick="filterCategory('${cat.split(' ')[1]}')" class="bg-white p-4 rounded-xl border border-gray-100 hover:border-blue-300 hover:shadow-sm cursor-pointer flex items-center justify-between">
+                <span class="font-medium text-sm text-gray-700">${cat}</span>
+                <i class="fa-solid fa-chevron-right text-xs text-gray-300"></i>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function handleSearch(type) {
+      const prof = document.getElementById('search-prof').value;
+      const city = document.getElementById('search-city').value;
+      router(type, { prof, city });
+    }
+
+    function filterCategory(prof) {
+      router('jobs', { prof });
+    }
+
+    // --- 2. ПОИСК ВАКАНСИЙ ---
+    function renderJobs(container) {
+      const prof = filterParams.prof || '';
+      const city = filterParams.city || '';
+
+      const filtered = DB.vacancies.filter(v => 
+        (prof === '' || v.title.toLowerCase().includes(prof.toLowerCase())) &&
+        (city === '' || v.city === city)
+      );
+
+      container.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">Поиск работы</h2>
+        <div class="mb-6 flex gap-3">
+          <input type="text" id="j-prof" value="${prof}" placeholder="Профессия" class="p-2 border rounded-lg text-sm flex-1">
+          <select id="j-city" class="p-2 border rounded-lg text-sm">
+            <option value="">Все города</option>
+            ${DB.cities.map(c => `<option value="${c}" ${c === city ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+          <button onclick="router('jobs', {prof: document.getElementById('j-prof').value, city: document.getElementById('j-city').value})" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">Искать</button>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-4">Найдено вакансий: ${filtered.length}</p>
+        <div class="space-y-4">
+          ${filtered.map(v => `
+            <div class="bg-white p-5 rounded-xl border hover:shadow-md transition cursor-pointer flex justify-between items-center" onclick="router('vacancy', {id: ${v.id}})">
+              <div>
+                <h3 class="text-lg font-bold text-blue-600">${v.title}</h3>
+                <p class="text-sm text-gray-600 font-medium">${v.company} <span class="text-amber-500">⭐ ${v.rating}</span></p>
+                <div class="flex gap-4 text-xs text-gray-500 mt-2">
+                  <span>📍 ${v.city}</span>
+                  <span class="font-bold text-emerald-600">${v.salary}</span>
+                </div>
+              </div>
+              <button class="bg-blue-50 text-blue-600 font-medium px-4 py-2 rounded-lg text-sm">Подробнее</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // --- 3. ПОИСК РАБОТНИКОВ ---
+    function renderWorkers(container) {
+      const prof = filterParams.prof || '';
+      const city = filterParams.city || '';
+
+      const filtered = DB.workers.filter(w => 
+        (prof === '' || w.profession.toLowerCase().includes(prof.toLowerCase())) &&
+        (city === '' || w.city === city)
+      );
+
+      container.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">Найти специалиста</h2>
+        <div class="mb-6 flex gap-3">
+          <input type="text" id="w-prof" value="${prof}" placeholder="Специализация" class="p-2 border rounded-lg text-sm flex-1">
+          <select id="w-city" class="p-2 border rounded-lg text-sm">
+            <option value="">Все города</option>
+            ${DB.cities.map(c => `<option value="${c}" ${c === city ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+          <button onclick="router('workers', {prof: document.getElementById('w-prof').value, city: document.getElementById('w-city').value})" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm">Искать</button>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-4">Специалистов найдено: ${filtered.length}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ${filtered.map(w => `
+            <div class="bg-white p-5 rounded-xl border hover:shadow-md cursor-pointer flex flex-col justify-between" onclick="router('worker_profile', {id: ${w.id}})">
+              <div>
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 class="text-lg font-bold">${w.name}</h3>
+                    <p class="text-sm font-medium text-gray-600">${w.profession}</p>
+                  </div>
+                  <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-medium">${w.status}</span>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">📍 ${w.city} • Опыт: ${w.experience}</p>
+                <div class="flex flex-wrap gap-1 mb-4">
+                  ${w.skills.map(s => `<span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">${s}</span>`).join('')}
+                </div>
+              </div>
+              <div class="border-t pt-3 flex justify-between items-center text-sm">
+                <div>
+                  <span class="text-amber-500 font-bold">⭐ ${w.rating}</span>
+                  <span class="text-xs text-gray-400">(${w.reviewsCount} работ)</span>
+                </div>
+                <span class="text-blue-600 font-medium">Профиль →</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // --- 4. ПРОФИЛЬ РАБОТНИКА ---
+    function renderWorkerProfile(container, id) {
+      const worker = DB.workers.find(w => w.id == id) || DB.workers[0];
+
+      container.innerHTML = `
+        <div class="bg-white rounded-xl border p-6 max-w-3xl mx-auto shadow-sm">
+          <div class="flex justify-between items-start border-b pb-4">
+            <div>
+              <h1 class="text-2xl font-bold">${worker.name}</h1>
+              <span class="text-xs bg-emerald-100 text-emerald-700 font-medium px-2 py-1 rounded-full inline-block mt-1">${worker.status}</span>
+              <p class="text-sm text-gray-500 mt-2">📍 ${worker.city} • ${worker.profession}</p>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-amber-500">⭐ ${worker.rating}</div>
+              <p class="text-xs text-gray-400">${worker.reviewsCount} отзывов / работ</p>
+            </div>
+          </div>
+
+          <div class="py-4 border-b">
+            <h3 class="font-bold text-sm text-gray-700 mb-2">Навыки</h3>
+            <div class="flex flex-wrap gap-2">
+              ${worker.skills.map(s => `<span class="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-md font-medium">${s}</span>`).join('')}
+            </div>
+          </div>
+
+          <div class="py-4 border-b">
+            <h3 class="font-bold text-sm text-gray-700 mb-1">О себе</h3>
+            <p class="text-sm text-gray-600">${worker.about}</p>
+          </div>
+
+          <div class="py-4 border-b">
+            <h3 class="font-bold text-sm text-gray-700 mb-3">Репутация и детализация</h3>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-gray-50 p-3 rounded-lg">
+                <span class="block text-xs text-gray-400">Качество</span>
+                <span class="font-bold text-sm">${worker.scores.quality}</span>
+              </div>
+              <div class="bg-gray-50 p-3 rounded-lg">
+                <span class="block text-xs text-gray-400">Пунктуальность</span>
+                <span class="font-bold text-sm">${worker.scores.punctuality}</span>
+              </div>
+              <div class="bg-gray-50 p-3 rounded-lg">
+                <span class="block text-xs text-gray-400">Общение</span>
+                <span class="font-bold text-sm">${worker.scores.communication}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex gap-3">
+            <button onclick="alert('Телефон: +7 (928) 123-45-67')" class="flex-1 bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700">ПОЗВОНИТЬ</button>
+            <button onclick="alert('Открыт диалог с кандидатом')" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">НАПИСАТЬ</button>
+            <button onclick="alert('Жалоба отправлена модератору')" class="bg-gray-100 text-gray-500 px-4 rounded-xl hover:bg-gray-200">ПОЖАЛОВАТЬСЯ</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- 5. ПРОСМОТР ВАКАНСИИ И ОТКЛИК ---
+    function renderVacancyDetail(container, id) {
+      const v = DB.vacancies.find(item => item.id == id) || DB.vacancies[0];
+
+      container.innerHTML = `
+        <div class="bg-white rounded-xl border p-6 max-w-3xl mx-auto shadow-sm">
+          <div class="border-b pb-4">
+            <span class="text-xs font-bold text-emerald-600 uppercase">Вакансия</span>
+            <h1 class="text-2xl font-bold text-gray-900 mt-1">${v.title}</h1>
+            <p class="text-md font-medium text-gray-700">${v.company} <span class="text-amber-500 text-sm">⭐ ${v.rating}</span></p>
+            <p class="text-sm text-gray-500 mt-1">📍 ${v.city}</p>
+            <div class="mt-3 text-xl font-extrabold text-emerald-600">${v.salary}</div>
+          </div>
+
+          <div class="py-4 border-b">
+            <h3 class="font-bold text-sm text-gray-700 mb-2">Требования</h3>
+            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+              ${v.requirements.map(r => `<li>${r}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div class="py-4 border-b">
+            <h3 class="font-bold text-sm text-gray-700 mb-2">Условия</h3>
+            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+              ${v.conditions.map(c => `<li>${c}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div class="mt-6 flex gap-3">
+            <button onclick="applyToJob(${v.id})" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">ОТКЛИКНУТЬСЯ</button>
+            <button onclick="alert('Контакты работодателя: +7 (928) 999-88-77')" class="bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-700">ПОЗВОНИТЬ</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function applyToJob(vacancyId) {
+      if (!DB.currentUser) {
+        alert("Пожалуйста, войдите в систему, чтобы откликнуться.");
+        router('auth');
+        return;
+      }
+      
+      const exists = DB.applications.find(a => a.vacancyId === vacancyId && a.workerId === DB.currentUser.id);
+      if (exists) {
+        alert("Вы уже откликались на эту вакансию!");
+        return;
+      }
+
+      DB.applications.push({
+        id: Date.now(),
+        vacancyId: vacancyId,
+        workerId: DB.currentUser.id,
+        status: "Откликнулся",
+        hired: false,
+        completed: false
+      });
+      saveData();
+      alert("Ваш отклик успешно отправлен работодателю!");
+      router('cabinet');
+    }
+
+    // --- 6. ЛИЧНЫЙ КАБИНЕТ И МЕХАНИКА ОТЗЫВОВ (П. 8-9) ---
+    function renderCabinet(container) {
+      const isWorker = DB.currentUser.role === 'worker';
+
+      container.innerHTML = `
+        <h1 class="text-2xl font-bold mb-6">Личный кабинет</h1>
+
+        <div class="bg-white p-6 rounded-xl border mb-6 flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-bold">${DB.currentUser.name}</h2>
+            <p class="text-sm text-gray-500">Роль: ${isWorker ? 'Ищу работу (Специалист)' : 'Работодатель'} | Город: ${DB.currentUser.city}</p>
+          </div>
+          <button onclick="logout()" class="text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg font-medium">Выйти</button>
+        </div>
+
+        ${!isWorker ? renderEmployerCabinet() : renderWorkerCabinet()}
+      `;
+    }
+
+    function renderEmployerCabinet() {
+      // Отклики от соискателей
+      const myVacancies = DB.vacancies.filter(v => v.employerId === DB.currentUser.id);
+      const myVacancyIds = myVacancies.map(v => v.id);
+      const apps = DB.applications.filter(a => myVacancyIds.includes(a.vacancyId));
+
+      return `
+        <h3 class="text-lg font-bold mb-3">Полученные отклики (${apps.length})</h3>
+        <div class="space-y-3">
+          ${apps.length === 0 ? '<p class="text-sm text-gray-400">Откликов пока нет.</p>' : ''}
+          ${apps.map(app => {
+            const worker = DB.workers.find(w => w.id === app.workerId) || { name: "Соискатель", profession: "Специалист", rating: 5.0, experience: "1 год" };
+            const vacancy = DB.vacancies.find(v => v.id === app.vacancyId);
+
+            return `
+              <div class="bg-white p-4 rounded-xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <span class="text-xs font-bold text-blue-600">Вакансия: ${vacancy?.title}</span>
+                  <h4 class="font-bold text-base mt-1">${worker.name} — <span class="text-amber-500">⭐ ${worker.rating}</span></h4>
+                  <p class="text-xs text-gray-500">${worker.profession} • Опыт: ${worker.experience}</p>
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto">
+                  ${!app.hired ? `
+                    <button onclick="hireWorker(${app.id})" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-lg font-medium">Нанять</button>
+                  ` : !app.completed ? `
+                    <button onclick="completeWork(${app.id})" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-medium">Завершить работу</button>
+                  ` : `
+                    <button onclick="openReviewModal(${app.id})" class="bg-amber-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Оценить работника</button>
+                  `}
+                  <button onclick="router('worker_profile', {id: ${worker.id}})" class="bg-gray-100 text-gray-700 text-xs px-3 py-2 rounded-lg font-medium">Профиль</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderWorkerCabinet() {
+      const myApps = DB.applications.filter(a => a.workerId === DB.currentUser.id);
+
+      return `
+        <h3 class="text-lg font-bold mb-3">Мои отклики (${myApps.length})</h3>
+        <div class="space-y-3">
+          ${myApps.length === 0 ? '<p class="text-sm text-gray-400">Вы ещё не откликались на вакансии.</p>' : ''}
+          ${myApps.map(app => {
+            const vacancy = DB.vacancies.find(v => v.id === app.vacancyId);
+            return `
+              <div class="bg-white p-4 rounded-xl border flex justify-between items-center">
+                <div>
+                  <h4 class="font-bold text-base">${vacancy?.title}</h4>
+                  <p class="text-xs text-gray-500">${vacancy?.company} • 📍 ${vacancy?.city}</p>
+                  <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded ${app.completed ? 'bg-blue-100 text-blue-700' : app.hired ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">
+                    ${app.completed ? 'Работа завершена' : app.hired ? 'Вас наняли!' : 'Отклик отправлен'}
+                  </span>
+                </div>
+                ${app.completed ? `
+                  <button onclick="alert('Форма оценки работодателя открыта')" class="bg-amber-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Оценить работодателя</button>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function hireWorker(appId) {
+      const app = DB.applications.find(a => a.id === appId);
+      if (app) { app.hired = true; saveData(); router('cabinet'); }
+    }
+
+    function completeWork(appId) {
+      const app = DB.applications.find(a => a.id === appId);
+      if (app) { app.completed = true; saveData(); router('cabinet'); }
+    }
+
+    function openReviewModal(appId) {
+      const score = prompt("Оцените работу соискателя (Качество, Пунктуальность) от 1 до 5:", "5");
+      if (score) {
+        alert("Спасибо! Ваш подтверждённый отзыв сохранён и повлияет на рейтинг специалиста.");
+      }
+    }
+
+    // --- 7. РЕГИСТРАЦИЯ / ВХОД (П. 3) ---
+    function renderAuth(container) {
+      container.innerHTML = `
+        <div class="max-w-md mx-auto bg-white p-6 rounded-xl border shadow-sm">
+          <h2 class="text-2xl font-bold text-center mb-6">Создать аккаунт</h2>
+          
+          <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-500 mb-2">КТО ВЫ?</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="role-w" onclick="setAuthRole('worker')" class="p-3 border rounded-xl text-xs font-bold text-center bg-blue-50 border-blue-500 text-blue-600">Я ищу работу</button>
+              <button id="role-e" onclick="setAuthRole('employer')" class="p-3 border rounded-xl text-xs font-bold text-center text-gray-500">Я ищу работников</button>
+            </div>
+          </div>
+
+          <form onsubmit="handleRegister(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-gray-500 font-semibold mb-1">Имя / Название компании</label>
+              <input type="text" id="reg-name" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 font-semibold mb-1">Номер телефона</label>
+              <input type="tel" id="reg-phone" placeholder="+7 (928) 000-00-00" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 font-semibold mb-1">Город</label>
+              <select id="reg-city" class="w-full p-2.5 border rounded-lg text-sm">
+                ${DB.cities.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 font-semibold mb-1">Пароль</label>
+              <input type="password" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-blue-700 mt-2">Создать аккаунт</button>
+          </form>
+        </div>
+      `;
+    }
+
+    let selectedRole = 'worker';
+    function setAuthRole(role) {
+      selectedRole = role;
+      document.getElementById('role-w').className = role === 'worker' ? 'p-3 border rounded-xl text-xs font-bold text-center bg-blue-50 border-blue-500 text-blue-600' : 'p-3 border rounded-xl text-xs font-bold text-center text-gray-500';
+      document.getElementById('role-e').className = role === 'employer' ? 'p-3 border rounded-xl text-xs font-bold text-center bg-blue-50 border-blue-500 text-blue-600' : 'p-3 border rounded-xl text-xs font-bold text-center text-gray-500';
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('reg-name').value;
+      const city = document.getElementById('reg-city').value;
+      const phone = document.getElementById('reg-phone').value;
+
+      const newUser = {
+        id: Date.now(),
+        name,
+        role: selectedRole,
+        city,
+        phone
+      };
+
+      DB.currentUser = newUser;
+      if (selectedRole === 'employer') {
+        DB.employers.push({ id: newUser.id, name, city, rating: 5.0, reviewsCount: 0, since: "2026", scores: { payment: 5.0, attitude: 5.0, conditions: 5.0 } });
+      } else {
+        DB.workers.push({ id: newUser.id, name, status: "🟢 Открыт к работе", city, profession: "Разнорабочий", rating: 5.0, reviewsCount: 0, experience: "Без опыта", skills: ["Ответственность"], about: "Ищу работу.", scores: { quality: 5.0, punctuality: 5.0, communication: 5.0 } });
+      }
+
+      saveData();
+      alert("Аккаунт успешно создан! Телефон подтверждён.");
+      router('cabinet');
+    }
+
+    // --- 8. ДОБАВЛЕНИЕ ВАКАНСИИ ---
+    function renderPostJob(container) {
+      if (!DB.currentUser || DB.currentUser.role !== 'employer') {
+        container.innerHTML = `
+          <div class="text-center py-12">
+            <p class="text-gray-600 mb-4">Для размещения вакансий необходимо войти как Работодатель.</p>
+            <button onclick="router('auth')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Войти / Зарегистрироваться</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="max-w-xl mx-auto bg-white p-6 rounded-xl border shadow-sm">
+          <h2 class="text-2xl font-bold mb-4">Разместить вакансию</h2>
+          <form onsubmit="handleCreateJob(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">Название должности</label>
+              <input type="text" id="job-title" placeholder="Например: Электрик" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">Город</label>
+              <select id="job-city" class="w-full p-2.5 border rounded-lg text-sm">
+                ${DB.cities.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">Зарплата</label>
+              <input type="text" id="job-salary" placeholder="Например: 70 000 - 90 000 ₽" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 mb-1">Требования (через запятую)</label>
+              <input type="text" id="job-req" placeholder="Опыт от 2 лет, ответственность" required class="w-full p-2.5 border rounded-lg text-sm">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-blue-700">Опубликовать вакансию</button>
+          </form>
+        </div>
+      `;
+    }
+
+    function handleCreateJob(e) {
+      e.preventDefault();
+      const title = document.getElementById('job-title').value;
+      const city = document.getElementById('job-city').value;
+      const salary = document.getElementById('job-salary').value;
+      const reqRaw = document.getElementById('job-req').value;
+
+      const newJob = {
+        id: Date.now(),
+        employerId: DB.currentUser.id,
+        company: DB.currentUser.name,
+        title,
+        city,
+        salary,
+        requirements: reqRaw.split(',').map(s => s.trim()),
+        conditions: ["Полный рабочий день", "Оформление"],
+        rating: 5.0
+      };
+
+      DB.vacancies.unshift(newJob);
+      saveData();
+      alert("Вакансия успешно опубликована!");
+      router('jobs');
+    }
+
+    function logout() {
+      DB.currentUser = null;
+      saveData();
+      router('home');
+    }
+
+    // Старт
+    router('home');
+  </script>
+</body>
+</html>
